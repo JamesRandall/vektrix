@@ -1,0 +1,17 @@
+{
+  "name": "vektrix",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "clean": "find src -name '*.js' -type f -delete && rm -rf node_modules/.vite .vite",
+    "dev": "npm run clean && vite",
+    "build": "npm run clean && tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@webgpu/types": "^0.1.52",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.3"
+  }
+}
