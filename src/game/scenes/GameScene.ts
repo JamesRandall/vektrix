@@ -3,7 +3,7 @@ import { SceneContext } from './SceneContext';
 import { updateInput, isKeyPressed, isSmartBombPressed, isPausePressed, isAnyNewInputPressed, requestPointerLock, gamepad, reticleOffset, pointerLock } from '../../engine/core/input';
 import { camera } from '../../engine/core/camera';
 import { addCameraShake, updateCameraShake, getShakeOffset } from '../../engine/core/cameraShake';
-import { simulateGrid, applyGridImpulse } from '../../engine/grid/grid';
+import { simulateGrid, applyGridImpulse, applyGridLineForce } from '../../engine/grid/grid';
 import { WORLD_WIDTH, WORLD_HEIGHT, GRID_COLORS } from '../constants';
 import { MenuState } from '../gameMenu';
 import { MenuScene } from './MenuScene';
@@ -269,6 +269,15 @@ export class GameScene extends BaseScene {
       const player = getPlayer();
       const playerSpeed = player ? player.velocity.speed : 0;
       updatePlasmaBands(dt, playerSpeed, playerPos.x, playerPos.y);
+
+      // Apply grid distortion from plasma bands
+      const bands = getActiveBands();
+      for (const band of bands) {
+        if (band.isClosing) {
+          const isHorizontal = band.edge === 'top' || band.edge === 'bottom';
+          applyGridLineForce(grid, band.currentPosition, isHorizontal, 120, 160);
+        }
+      }
 
       // Update plasma audio
       if (hasActiveBands()) {

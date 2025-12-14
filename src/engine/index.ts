@@ -26,7 +26,7 @@ export {
 export { transforms, velocities, sprites, Transform, Velocity, Sprite } from './ecs/components';
 
 // Grid
-export { createGrid, simulateGrid, applyGridImpulse, GRID_COLS, GRID_ROWS, VERTEX_COUNT } from './grid/grid';
+export { createGrid, simulateGrid, applyGridImpulse, applyGridLineForce, GRID_COLS, GRID_ROWS, VERTEX_COUNT } from './grid/grid';
 export type { GridState } from './grid/grid';
 
 // Rendering

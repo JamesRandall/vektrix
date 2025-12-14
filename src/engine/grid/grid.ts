@@ -152,3 +152,33 @@ export function applyGridImpulse(
     }
   }
 }
+
+// Apply force along a horizontal or vertical line (for plasma bands)
+export function applyGridLineForce(
+  grid: GridState,
+  position: number,
+  isHorizontal: boolean,
+  radius: number,
+  force: number
+): void {
+  for (let i = 0; i < VERTEX_COUNT; i++) {
+    // Distance perpendicular to the band
+    const dist = isHorizontal
+      ? Math.abs(grid.y[i] - position)
+      : Math.abs(grid.x[i] - position);
+
+    if (dist < radius) {
+      const falloff = 1 - dist / radius;
+      const impulse = force * falloff * falloff;
+
+      // Push perpendicular to the band (away from it)
+      if (isHorizontal) {
+        const dir = grid.y[i] > position ? 1 : -1;
+        grid.vy[i] += dir * impulse;
+      } else {
+        const dir = grid.x[i] > position ? 1 : -1;
+        grid.vx[i] += dir * impulse;
+      }
+    }
+  }
+}
