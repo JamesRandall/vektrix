@@ -94,8 +94,8 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
   var totalColor = vec3f(0.0);
   var totalAlpha = 0.0;
 
-  let coreWidth = 2.0 / uniforms.zoom;       // Thin white core (screen pixels)
-  let particleWidth = 25.0 / uniforms.zoom;  // Yellow particle spread
+  let coreWidth = 0.5;                        // Thin white core
+  let particleWidth = 1.0;                    // Yellow particle spread
 
   for (var i = 0; i < ${MAX_BANDS}; i++) {
     if (i >= bandCount) {
@@ -134,7 +134,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
     let n3 = noise(vec2f(alongBand * noiseScale * 0.7 + 200.0, uniforms.time * 6.0), timeScale * 0.7);
 
     // Jitter the distance based on noise
-    let jitter = (n1 - 0.5) * 15.0 + (n2 - 0.5) * 10.0 + (n3 - 0.5) * 8.0;
+    let jitter = (n1 - 0.5) * 2.0 + (n2 - 0.5) * 1.5 + (n3 - 0.5) * 1.0;
     let jitteredDist = screenDist + jitter * band.intensity;
 
     // Particle intensity based on jittered distance
@@ -153,11 +153,11 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
     let fadeAlpha = band.alpha;
 
     // Combine core and particles
-    // Core is white (HDR bright)
-    let coreColor = vec3f(2.5, 2.5, 2.5) * coreAlpha * warningMult;
+    // Core is white (less HDR to reduce bloom spread)
+    let coreColor = vec3f(1.2, 1.2, 1.0) * coreAlpha * warningMult;
 
-    // Particles are yellow/orange (HDR)
-    let particleColor = vec3f(1.8, 1.4, 0.3) * particleAlpha * warningMult * band.intensity;
+    // Particles are yellow/orange (reduced intensity to minimize bloom spread)
+    let particleColor = vec3f(0.9, 0.7, 0.15) * particleAlpha * warningMult * band.intensity;
 
     let bandColor = coreColor + particleColor;
     let bandAlpha = max(coreAlpha, particleAlpha * band.intensity) * fadeAlpha * warningMult;
