@@ -834,7 +834,7 @@ export class GameScene extends BaseScene {
         if (activeBands.length > 0) {
           plasmaRenderer.render(
             encoder, sceneTarget,
-            canvas.width, canvas.height,
+            WORLD_WIDTH, WORLD_HEIGHT,
             camX, camY, camera.zoom,
             time, activeBands
           );

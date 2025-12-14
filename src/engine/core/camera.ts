@@ -20,6 +20,7 @@ export class Camera {
 
   /**
    * Get visible world dimensions at current zoom
+   * Uses world size (not screen size) for consistency with sprite rendering
    */
   getVisibleSize(): { width: number; height: number } {
     return {
@@ -63,33 +64,31 @@ export class Camera {
 
   /**
    * Convert screen coordinates to world coordinates
+   * Inverse of worldToScreen (accounts for virtual screen scaling)
    */
   screenToWorld(screenX: number, screenY: number): { x: number; y: number } {
-    const visible = this.getVisibleSize();
-
-    // Screen coords are relative to canvas (0,0 at top-left)
-    // Convert to world coords centered on camera
-    const normalizedX = screenX / this.screenWidth - 0.5;  // -0.5 to 0.5
-    const normalizedY = screenY / this.screenHeight - 0.5;
-
+    // Convert actual screen pixels to virtual screen
+    const virtualX = screenX * this.worldWidth / this.screenWidth;
+    const virtualY = screenY * this.worldHeight / this.screenHeight;
+    // Convert virtual screen to world
     return {
-      x: this.x + normalizedX * visible.width,
-      y: this.y + normalizedY * visible.height,
+      x: (virtualX - this.worldWidth / 2) / this.zoom + this.x,
+      y: (virtualY - this.worldHeight / 2) / this.zoom + this.y,
     };
   }
 
   /**
-   * Convert world coordinates to screen coordinates
+   * Convert world coordinates to screen coordinates (actual canvas pixels)
+   * Sprites use WORLD_WIDTH/HEIGHT as virtual screen, so we scale to actual screen
    */
   worldToScreen(worldX: number, worldY: number): { x: number; y: number } {
-    const visible = this.getVisibleSize();
-
-    const normalizedX = (worldX - this.x) / visible.width;
-    const normalizedY = (worldY - this.y) / visible.height;
-
+    // Virtual screen position (matches sprite shader with WORLD_WIDTH/HEIGHT)
+    const virtualX = (worldX - this.x) * this.zoom + this.worldWidth / 2;
+    const virtualY = (worldY - this.y) * this.zoom + this.worldHeight / 2;
+    // Scale to actual screen pixels
     return {
-      x: (normalizedX + 0.5) * this.screenWidth,
-      y: (normalizedY + 0.5) * this.screenHeight,
+      x: virtualX * this.screenWidth / this.worldWidth,
+      y: virtualY * this.screenHeight / this.worldHeight,
     };
   }
 }

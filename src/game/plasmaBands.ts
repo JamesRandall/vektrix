@@ -21,6 +21,7 @@ export interface PlasmaBand {
   currentPosition: number;   // Current world position of the band
   targetPosition: number;    // Player position on this axis
   spawnPosition: number;     // Original spawn position (screen edge)
+  speed: number;             // Movement speed (calculated so bands arrive together)
   isClosing: boolean;
   isFading: boolean;
   fadeTimer: number;
@@ -66,10 +67,18 @@ function spawnBands(playerX: number, playerY: number): void {
   // Choose horizontal edge (top or bottom) - closest to player
   const hEdge: BandEdge = distToTop < distToBottom ? 'top' : 'bottom';
   const hPosition = hEdge === 'top' ? bounds.top : bounds.bottom;
+  const hDist = hEdge === 'top' ? distToTop : distToBottom;
 
   // Choose vertical edge (left or right) - closest to player
   const vEdge: BandEdge = distToLeft < distToRight ? 'left' : 'right';
   const vPosition = vEdge === 'left' ? bounds.left : bounds.right;
+  const vDist = vEdge === 'left' ? distToLeft : distToRight;
+
+  // Calculate speeds so both bands arrive at the same time
+  // The farther band moves at BASE_CLOSE_SPEED, the closer one is proportionally slower
+  const maxDist = Math.max(hDist, vDist);
+  const hSpeed = maxDist > 0 ? (hDist / maxDist) * BASE_CLOSE_SPEED : BASE_CLOSE_SPEED;
+  const vSpeed = maxDist > 0 ? (vDist / maxDist) * BASE_CLOSE_SPEED : BASE_CLOSE_SPEED;
 
   // Create horizontal band
   plasmaState.activeBands.push({
@@ -77,6 +86,7 @@ function spawnBands(playerX: number, playerY: number): void {
     currentPosition: hPosition,
     targetPosition: playerY,
     spawnPosition: hPosition,
+    speed: hSpeed,
     isClosing: false,
     isFading: false,
     fadeTimer: 0,
@@ -90,6 +100,7 @@ function spawnBands(playerX: number, playerY: number): void {
     currentPosition: vPosition,
     targetPosition: playerX,
     spawnPosition: vPosition,
+    speed: vSpeed,
     isClosing: false,
     isFading: false,
     fadeTimer: 0,
@@ -114,7 +125,7 @@ export function updatePlasmaBands(
   }
 
   const isMoving = playerSpeed > VELOCITY_THRESHOLD;
-  const closeSpeed = BASE_CLOSE_SPEED * getGameSpeed();
+  const gameSpeed = getGameSpeed();
 
   // Update stationary detection
   if (isMoving) {
@@ -187,7 +198,7 @@ export function updatePlasmaBands(
       band.targetPosition = target;
 
       const direction = band.edge === 'top' || band.edge === 'left' ? 1 : -1;
-      band.currentPosition += direction * closeSpeed * dt;
+      band.currentPosition += direction * band.speed * gameSpeed * dt;
 
       // Check if band has passed player position
       if (band.edge === 'top' && band.currentPosition >= target) {
