@@ -4,6 +4,11 @@ export class ProceduralSounds {
   private context: AudioContext;
   private destination: AudioNode;
 
+  // Plasma humming state
+  private plasmaOscillator: OscillatorNode | null = null;
+  private plasmaGain: GainNode | null = null;
+  private plasmaFilter: BiquadFilterNode | null = null;
+
   constructor(context: AudioContext, destination: AudioNode) {
     this.context = context;
     this.destination = destination;
@@ -476,5 +481,92 @@ export class ProceduralSounds {
     rumbleFilter.connect(rumbleGain);
     rumbleGain.connect(this.destination);
     rumble.start(now + 0.05);
+  }
+
+  /**
+   * Start plasma band humming - continuous oscillator
+   */
+  startPlasmaHum(volume = 0.15): void {
+    if (this.plasmaOscillator) return; // Already running
+
+    const now = this.context.currentTime;
+
+    this.plasmaOscillator = this.context.createOscillator();
+    this.plasmaGain = this.context.createGain();
+    this.plasmaFilter = this.context.createBiquadFilter();
+
+    // Low frequency hum with harmonics
+    this.plasmaOscillator.type = 'sawtooth';
+    this.plasmaOscillator.frequency.setValueAtTime(80, now);
+
+    // Bandpass filter for electric hum character
+    this.plasmaFilter.type = 'bandpass';
+    this.plasmaFilter.frequency.setValueAtTime(150, now);
+    this.plasmaFilter.Q.setValueAtTime(2, now);
+
+    // Start quiet, will ramp up
+    this.plasmaGain.gain.setValueAtTime(volume * 0.3, now);
+
+    this.plasmaOscillator.connect(this.plasmaFilter);
+    this.plasmaFilter.connect(this.plasmaGain);
+    this.plasmaGain.connect(this.destination);
+
+    this.plasmaOscillator.start(now);
+  }
+
+  /**
+   * Update plasma hum intensity based on band distance
+   * @param intensity 0-1 where 1 is closest/loudest
+   */
+  updatePlasmaHum(intensity: number): void {
+    if (!this.plasmaOscillator || !this.plasmaGain || !this.plasmaFilter) return;
+
+    const now = this.context.currentTime;
+    const clampedIntensity = Math.max(0, Math.min(1, intensity));
+
+    // Frequency rises as bands get closer (80Hz -> 200Hz)
+    const targetFreq = 80 + clampedIntensity * 120;
+    this.plasmaOscillator.frequency.exponentialRampToValueAtTime(targetFreq, now + 0.1);
+
+    // Filter frequency rises too (150Hz -> 400Hz)
+    const filterFreq = 150 + clampedIntensity * 250;
+    this.plasmaFilter.frequency.exponentialRampToValueAtTime(filterFreq, now + 0.1);
+
+    // Volume increases (0.05 -> 0.4)
+    const targetVolume = 0.05 + clampedIntensity * 0.35;
+    this.plasmaGain.gain.exponentialRampToValueAtTime(Math.max(0.01, targetVolume), now + 0.1);
+  }
+
+  /**
+   * Stop plasma humming with fade out
+   */
+  stopPlasmaHum(): void {
+    if (!this.plasmaOscillator || !this.plasmaGain) return;
+
+    const now = this.context.currentTime;
+
+    // Fade out over 200ms
+    this.plasmaGain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+    // Schedule cleanup
+    const osc = this.plasmaOscillator;
+    setTimeout(() => {
+      try {
+        osc.stop();
+      } catch {
+        // Already stopped
+      }
+    }, 250);
+
+    this.plasmaOscillator = null;
+    this.plasmaGain = null;
+    this.plasmaFilter = null;
+  }
+
+  /**
+   * Check if plasma hum is currently active
+   */
+  isPlasmaHumActive(): boolean {
+    return this.plasmaOscillator !== null;
   }
 }

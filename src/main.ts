@@ -15,6 +15,7 @@ import hudLineShader from './engine/rendering/shaders/hudLine.wgsl';
 import { ParticleSystem, PARTICLE_EFFECTS } from './engine/particles';
 import { WORLD_WIDTH, WORLD_HEIGHT } from './game/constants';
 import { BlackHoleRenderer } from './engine/rendering/blackHoleRenderer';
+import { PlasmaRenderer } from './engine/rendering/plasmaRenderer';
 import { ShootingSystem } from './game/bullets';
 import { applyGridImpulse } from './engine/grid/grid';
 import { addCameraShake } from './engine/core/cameraShake';
@@ -55,6 +56,7 @@ async function main() {
   const renderer = new Renderer(gpuContext);
   const spriteRenderer = new SpriteRenderer(gpuContext.device);
   const blackHoleRenderer = new BlackHoleRenderer(gpuContext.device);
+  const plasmaRenderer = new PlasmaRenderer(gpuContext.device);
 
   // Create particle system
   const particleSystem = new ParticleSystem(gpuContext.device, 'rgba16float');
@@ -96,6 +98,7 @@ async function main() {
     renderer,
     spriteRenderer,
     blackHoleRenderer,
+    plasmaRenderer,
     particleSystem,
     vectorHud,
     hud,

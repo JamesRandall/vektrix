@@ -47,6 +47,16 @@ import {
   isBlackHoleActive,
   resetBlackHole,
 } from '../blackHole';
+import {
+  updatePlasmaBands,
+  checkPlasmaCollision,
+  resetPlasmaGraceTimer,
+  clearPlasmaBands,
+  getActiveBands,
+  getClosestBandDistance,
+  hasActiveBands,
+} from '../plasmaBands';
+import { getPlayer } from '../player';
 
 /**
  * Main game scene - all gameplay logic
@@ -115,7 +125,7 @@ export class GameScene extends BaseScene {
   }
 
   private updateGameLogic(dt: number, time: number, justRestarted: boolean): void {
-    const { canvas, grid, waveManager, shootingSystem, renderer, hud } = this.ctx;
+    const { canvas, grid, waveManager, shootingSystem, renderer, hud, particleSystem } = this.ctx;
     const proceduralSounds = this.ctx.proceduralSounds;
     const musicPlayer = this.ctx.musicPlayer;
 
@@ -217,6 +227,9 @@ export class GameScene extends BaseScene {
       if (gameState.waveNumber % 4 === 0) {
         addLife();
       }
+
+      // Reset plasma grace timer on new wave
+      resetPlasmaGraceTimer();
     }
     if (currentInIntermission && !this.wasInIntermission) {
       proceduralSounds?.playWaveComplete();
@@ -230,6 +243,8 @@ export class GameScene extends BaseScene {
     if (shouldRespawn) {
       respawnPlayer();
       proceduralSounds?.playRespawn();
+      resetPlasmaGraceTimer();
+      clearPlasmaBands();
     }
 
     // Update player
@@ -251,6 +266,46 @@ export class GameScene extends BaseScene {
     // Update bullets
     updateBullets(dt, grid);
     updateEnemyBullets(dt, grid);
+
+    // Update plasma bands (anti-camping mechanic)
+    if (isPlayerAlive()) {
+      const player = getPlayer();
+      const playerSpeed = player ? player.velocity.speed : 0;
+      updatePlasmaBands(dt, playerSpeed, playerPos.x, playerPos.y);
+
+      // Update plasma audio
+      if (hasActiveBands()) {
+        if (!proceduralSounds?.isPlasmaHumActive()) {
+          proceduralSounds?.startPlasmaHum();
+        }
+        // Calculate intensity based on closest band distance
+        const closestDist = getClosestBandDistance(playerPos.x, playerPos.y);
+        const maxDist = 400; // Distance at which intensity is 0
+        const intensity = Math.max(0, 1 - closestDist / maxDist);
+        proceduralSounds?.updatePlasmaHum(intensity);
+      } else {
+        if (proceduralSounds?.isPlasmaHumActive()) {
+          proceduralSounds?.stopPlasmaHum();
+        }
+      }
+
+      // Check plasma collision
+      if (!isPlayerInvulnerable() && checkPlasmaCollision(playerPos.x, playerPos.y)) {
+        const wasHit = onPlayerHit();
+        if (wasHit) {
+          applyGridImpulse(grid, playerPos.x, playerPos.y, 300, 800);
+          particleSystem.emit(PARTICLE_EFFECTS.playerDeath(playerPos.x, playerPos.y));
+          proceduralSounds?.playPlayerDeath();
+          proceduralSounds?.stopPlasmaHum();
+          clearPlasmaBands();
+
+          if (gameState.isGameOver) {
+            proceduralSounds?.playGameOver();
+            renderer.setSceneFade(0.25);
+          }
+        }
+      }
+    }
 
     // Update black hole
     this.updateBlackHole(dt, playerPos);
@@ -657,9 +712,10 @@ export class GameScene extends BaseScene {
   }
 
   private handleRestart(): void {
-    const { grid, particleSystem, renderer, waveManager } = this.ctx;
+    const { grid, particleSystem, renderer, waveManager, proceduralSounds } = this.ctx;
 
     if (gameState.isGameOver) {
+      proceduralSounds?.stopPlasmaHum();
       camera.x = WORLD_WIDTH / 2;
       camera.y = WORLD_HEIGHT / 2;
       const centerX = camera.x;
@@ -687,6 +743,7 @@ export class GameScene extends BaseScene {
 
       resetSmartBomb();
       resetBlackHole();
+      clearPlasmaBands();
       restartGame();
       waveManager.reset();
       respawnPlayer();
@@ -700,7 +757,7 @@ export class GameScene extends BaseScene {
   }
 
   render(): void {
-    const { canvas, grid, renderer, spriteRenderer, blackHoleRenderer, particleSystem, vectorHud, hud } = this.ctx;
+    const { canvas, grid, renderer, spriteRenderer, blackHoleRenderer, plasmaRenderer, particleSystem, vectorHud, hud } = this.ctx;
     const time = this.ctx.time;
     const dt = 1 / 60;
 
@@ -769,6 +826,17 @@ export class GameScene extends BaseScene {
             camX, camY, camera.zoom,
             bhFillState.x, bhFillState.y, bhFillState.radius,
             time, ringColor
+          );
+        }
+
+        // Render plasma bands
+        const activeBands = getActiveBands();
+        if (activeBands.length > 0) {
+          plasmaRenderer.render(
+            encoder, sceneTarget,
+            canvas.width, canvas.height,
+            camX, camY, camera.zoom,
+            time, activeBands
           );
         }
       }

@@ -2,6 +2,7 @@ import { GridState } from '../../engine/grid/grid';
 import { Renderer } from '../../engine/rendering/renderer';
 import { SpriteRenderer } from '../../engine/rendering/spriteRenderer';
 import { BlackHoleRenderer } from '../../engine/rendering/blackHoleRenderer';
+import { PlasmaRenderer } from '../../engine/rendering/plasmaRenderer';
 import { ParticleSystem } from '../../engine/particles';
 import { VectorHUD } from '../vectorHud';
 import { HUD } from '../hud';
@@ -28,6 +29,7 @@ export interface SceneContext {
   renderer: Renderer;
   spriteRenderer: SpriteRenderer;
   blackHoleRenderer: BlackHoleRenderer;
+  plasmaRenderer: PlasmaRenderer;
   particleSystem: ParticleSystem;
   vectorHud: VectorHUD;
   hud: HUD;
@@ -58,6 +60,7 @@ export function createSceneContext(
   renderer: Renderer,
   spriteRenderer: SpriteRenderer,
   blackHoleRenderer: BlackHoleRenderer,
+  plasmaRenderer: PlasmaRenderer,
   particleSystem: ParticleSystem,
   vectorHud: VectorHUD,
   hud: HUD,
@@ -72,6 +75,7 @@ export function createSceneContext(
     renderer,
     spriteRenderer,
     blackHoleRenderer,
+    plasmaRenderer,
     particleSystem,
     vectorHud,
     hud,
