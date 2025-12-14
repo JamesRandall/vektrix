@@ -32,7 +32,6 @@ interface PlasmaState {
   stationaryTimer: number;
   graceTimer: number;
   activeBands: PlasmaBand[];
-  usedEdges: Set<BandEdge>;
   isWarningPhase: boolean;
   warningTimer: number;
 }
@@ -41,7 +40,6 @@ const plasmaState: PlasmaState = {
   stationaryTimer: 0,
   graceTimer: GRACE_TIME,
   activeBands: [],
-  usedEdges: new Set(),
   isWarningPhase: false,
   warningTimer: 0,
 };
@@ -65,39 +63,13 @@ function spawnBands(playerX: number, playerY: number): void {
   const distToTop = playerY - bounds.top;
   const distToBottom = bounds.bottom - playerY;
 
-  // Choose horizontal edge (top or bottom)
-  let hEdge: BandEdge;
-  let hPosition: number;
-  if (plasmaState.usedEdges.has('top')) {
-    hEdge = 'bottom';
-    hPosition = bounds.bottom;
-  } else if (plasmaState.usedEdges.has('bottom')) {
-    hEdge = 'top';
-    hPosition = bounds.top;
-  } else if (distToTop < distToBottom) {
-    hEdge = 'top';
-    hPosition = bounds.top;
-  } else {
-    hEdge = 'bottom';
-    hPosition = bounds.bottom;
-  }
+  // Choose horizontal edge (top or bottom) - closest to player
+  const hEdge: BandEdge = distToTop < distToBottom ? 'top' : 'bottom';
+  const hPosition = hEdge === 'top' ? bounds.top : bounds.bottom;
 
-  // Choose vertical edge (left or right)
-  let vEdge: BandEdge;
-  let vPosition: number;
-  if (plasmaState.usedEdges.has('left')) {
-    vEdge = 'right';
-    vPosition = bounds.right;
-  } else if (plasmaState.usedEdges.has('right')) {
-    vEdge = 'left';
-    vPosition = bounds.left;
-  } else if (distToLeft < distToRight) {
-    vEdge = 'left';
-    vPosition = bounds.left;
-  } else {
-    vEdge = 'right';
-    vPosition = bounds.right;
-  }
+  // Choose vertical edge (left or right) - closest to player
+  const vEdge: BandEdge = distToLeft < distToRight ? 'left' : 'right';
+  const vPosition = vEdge === 'left' ? bounds.left : bounds.right;
 
   // Create horizontal band
   plasmaState.activeBands.push({
@@ -124,10 +96,6 @@ function spawnBands(playerX: number, playerY: number): void {
     warningTimer: WARNING_TIME,
     isLethal: false,
   });
-
-  // Track used edges for death spiral
-  plasmaState.usedEdges.add(hEdge);
-  plasmaState.usedEdges.add(vEdge);
 }
 
 export function updatePlasmaBands(
@@ -175,17 +143,6 @@ export function updatePlasmaBands(
             band.isLethal = true;
             band.isClosing = true;
           }
-        }
-      }
-    } else if (plasmaState.activeBands.length > 0) {
-      // Death spiral: already have bands, check if we need more
-      const allBandsFading = plasmaState.activeBands.every(b => b.isFading);
-      if (!allBandsFading) {
-        // Check if player became stationary again - spawn new bands at opposite edges
-        const hasClosingBands = plasmaState.activeBands.some(b => b.isClosing && !b.isFading);
-        if (!hasClosingBands) {
-          // All bands stopped, player still stationary - spawn new ones
-          spawnBands(playerX, playerY);
         }
       }
     }
@@ -247,13 +204,7 @@ export function updatePlasmaBands(
 
   // Remove expired bands
   for (let i = bandsToRemove.length - 1; i >= 0; i--) {
-    const removed = plasmaState.activeBands.splice(bandsToRemove[i], 1)[0];
-    plasmaState.usedEdges.delete(removed.edge);
-  }
-
-  // Clear used edges if no bands remain
-  if (plasmaState.activeBands.length === 0) {
-    plasmaState.usedEdges.clear();
+    plasmaState.activeBands.splice(bandsToRemove[i], 1);
   }
 }
 
@@ -279,7 +230,6 @@ export function resetPlasmaGraceTimer(): void {
 
 export function clearPlasmaBands(): void {
   plasmaState.activeBands = [];
-  plasmaState.usedEdges.clear();
   plasmaState.stationaryTimer = 0;
   plasmaState.isWarningPhase = false;
   plasmaState.warningTimer = 0;
