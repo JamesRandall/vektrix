@@ -6,11 +6,10 @@ import { getGameSpeed, gameState } from './gameState';
 
 // Tuning parameters
 const VELOCITY_THRESHOLD = 5;      // Near-zero movement detection
-const STATIONARY_TIME = 0.5;       // Time before warning starts
-const WARNING_TIME = 0.5;          // Dim appearance before lethal
-const GRACE_TIME = 3.0;            // Immunity at start/wave/respawn
-const BASE_CLOSE_SPEED = 200;      // Units/sec (scales with game speed)
-const FADE_TIME = 1.5;             // Persistence after player moves
+const STATIONARY_TIME = 0.5;       // Time before bands spawn
+const GRACE_TIME = 3.0;            // Immunity at start/respawn
+const BASE_CLOSE_SPEED = 300;      // Units/sec (scales with game speed)
+const FADE_TIME = 1.0;             // Persistence after player moves
 const BAND_THICKNESS = 4;          // Collision thickness
 const PLAYER_RADIUS = 20;          // Player collision radius
 
@@ -33,16 +32,12 @@ interface PlasmaState {
   stationaryTimer: number;
   graceTimer: number;
   activeBands: PlasmaBand[];
-  isWarningPhase: boolean;
-  warningTimer: number;
 }
 
 const plasmaState: PlasmaState = {
   stationaryTimer: 0,
   graceTimer: GRACE_TIME,
   activeBands: [],
-  isWarningPhase: false,
-  warningTimer: 0,
 };
 
 function getScreenBounds(): { left: number; right: number; top: number; bottom: number } {
@@ -80,32 +75,32 @@ function spawnBands(playerX: number, playerY: number): void {
   const hSpeed = maxDist > 0 ? (hDist / maxDist) * BASE_CLOSE_SPEED : BASE_CLOSE_SPEED;
   const vSpeed = maxDist > 0 ? (vDist / maxDist) * BASE_CLOSE_SPEED : BASE_CLOSE_SPEED;
 
-  // Create horizontal band
+  // Create horizontal band - immediately lethal and closing
   plasmaState.activeBands.push({
     edge: hEdge,
     currentPosition: hPosition,
     targetPosition: playerY,
     spawnPosition: hPosition,
     speed: hSpeed,
-    isClosing: false,
+    isClosing: true,
     isFading: false,
     fadeTimer: 0,
-    warningTimer: WARNING_TIME,
-    isLethal: false,
+    warningTimer: 0,
+    isLethal: true,
   });
 
-  // Create vertical band
+  // Create vertical band - immediately lethal and closing
   plasmaState.activeBands.push({
     edge: vEdge,
     currentPosition: vPosition,
     targetPosition: playerX,
     spawnPosition: vPosition,
     speed: vSpeed,
-    isClosing: false,
+    isClosing: true,
     isFading: false,
     fadeTimer: 0,
-    warningTimer: WARNING_TIME,
-    isLethal: false,
+    warningTimer: 0,
+    isLethal: true,
   });
 }
 
@@ -130,33 +125,13 @@ export function updatePlasmaBands(
   // Update stationary detection
   if (isMoving) {
     plasmaState.stationaryTimer = 0;
-    plasmaState.isWarningPhase = false;
-    plasmaState.warningTimer = 0;
   } else {
     plasmaState.stationaryTimer += dt;
   }
 
-  // Handle warning phase and band spawning
-  if (!isMoving && plasmaState.stationaryTimer >= STATIONARY_TIME) {
-    if (!plasmaState.isWarningPhase && plasmaState.activeBands.length === 0) {
-      // Start warning phase
-      plasmaState.isWarningPhase = true;
-      plasmaState.warningTimer = WARNING_TIME;
-      spawnBands(playerX, playerY);
-    } else if (plasmaState.isWarningPhase) {
-      plasmaState.warningTimer -= dt;
-      if (plasmaState.warningTimer <= 0) {
-        // Warning complete - bands become lethal and start closing
-        plasmaState.isWarningPhase = false;
-        for (const band of plasmaState.activeBands) {
-          if (band.warningTimer > 0) {
-            band.warningTimer = 0;
-            band.isLethal = true;
-            band.isClosing = true;
-          }
-        }
-      }
-    }
+  // Spawn bands when player is stationary long enough
+  if (!isMoving && plasmaState.stationaryTimer >= STATIONARY_TIME && plasmaState.activeBands.length === 0) {
+    spawnBands(playerX, playerY);
   }
 
   // Update active bands
@@ -164,23 +139,6 @@ export function updatePlasmaBands(
 
   for (let i = 0; i < plasmaState.activeBands.length; i++) {
     const band = plasmaState.activeBands[i];
-
-    // Warning phase countdown
-    if (band.warningTimer > 0) {
-      // If player moves during warning, cancel the band (start fading)
-      if (isMoving) {
-        band.warningTimer = 0;
-        band.isFading = true;
-        band.fadeTimer = FADE_TIME;
-        continue;
-      }
-      band.warningTimer -= dt;
-      if (band.warningTimer <= 0) {
-        band.isLethal = true;
-        band.isClosing = true;
-      }
-      continue;
-    }
 
     // Handle closing/fading states
     if (isMoving && band.isClosing && !band.isFading) {
@@ -245,15 +203,11 @@ export function checkPlasmaCollision(playerX: number, playerY: number): boolean 
 export function resetPlasmaGraceTimer(): void {
   plasmaState.graceTimer = GRACE_TIME;
   plasmaState.stationaryTimer = 0;
-  plasmaState.isWarningPhase = false;
-  plasmaState.warningTimer = 0;
 }
 
 export function clearPlasmaBands(): void {
   plasmaState.activeBands = [];
   plasmaState.stationaryTimer = 0;
-  plasmaState.isWarningPhase = false;
-  plasmaState.warningTimer = 0;
   plasmaState.graceTimer = GRACE_TIME;
 }
 

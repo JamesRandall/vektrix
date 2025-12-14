@@ -227,9 +227,6 @@ export class GameScene extends BaseScene {
       if (gameState.waveNumber % 4 === 0) {
         addLife();
       }
-
-      // Reset plasma grace timer on new wave
-      resetPlasmaGraceTimer();
     }
     if (currentInIntermission && !this.wasInIntermission) {
       proceduralSounds?.playWaveComplete();
@@ -829,14 +826,16 @@ export class GameScene extends BaseScene {
           );
         }
 
-        // Render plasma bands
+        // Render plasma bands (using next wave's color)
         const activeBands = getActiveBands();
         if (activeBands.length > 0) {
+          const nextWaveColorIndex = gameState.waveNumber % GRID_COLORS.length;
           plasmaRenderer.render(
             encoder, sceneTarget,
             WORLD_WIDTH, WORLD_HEIGHT,
             camX, camY, camera.zoom,
-            time, activeBands
+            time, activeBands,
+            GRID_COLORS[nextWaveColorIndex]
           );
         }
       }

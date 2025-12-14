@@ -12,6 +12,8 @@ struct Uniforms {
   time: f32,
   bandCount: f32,
   _pad: f32,
+  bandColor: vec3f,
+  _pad2: f32,
 }
 
 struct Band {
@@ -153,11 +155,12 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4f {
     let fadeAlpha = band.alpha;
 
     // Combine core and particles
-    // Core is white (less HDR to reduce bloom spread)
-    let coreColor = vec3f(1.2, 1.2, 1.0) * coreAlpha * warningMult;
+    // Core is bright white tinted with band color
+    let coreColor = (vec3f(1.0, 1.0, 1.0) + uniforms.bandColor * 0.3) * coreAlpha * warningMult;
 
-    // Particles are yellow/orange (reduced intensity to minimize bloom spread)
-    let particleColor = vec3f(0.9, 0.7, 0.15) * particleAlpha * warningMult * band.intensity;
+    // Particles use the band color, brightened
+    let brightColor = uniforms.bandColor * 2.0;
+    let particleColor = brightColor * particleAlpha * warningMult * band.intensity;
 
     let bandColor = coreColor + particleColor;
     let bandAlpha = max(coreAlpha, particleAlpha * band.intensity) * fadeAlpha * warningMult;
@@ -192,9 +195,9 @@ export class PlasmaRenderer {
       code: shaderSource,
     });
 
-    // Uniforms: screenSize(8) + cameraPos(8) + zoom(4) + time(4) + bandCount(4) + pad(4) = 32
+    // Uniforms: screenSize(8) + cameraPos(8) + zoom(4) + time(4) + bandCount(4) + pad(4) + bandColor(12) + pad2(4) = 48
     this.uniformBuffer = this.device.createBuffer({
-      size: 32,
+      size: 48,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 
@@ -248,7 +251,8 @@ export class PlasmaRenderer {
     cameraY: number,
     zoom: number,
     time: number,
-    bands: readonly PlasmaBand[]
+    bands: readonly PlasmaBand[],
+    color: [number, number, number]
   ): void {
     if (bands.length === 0) return;
 
@@ -262,7 +266,8 @@ export class PlasmaRenderer {
         screenWidth, screenHeight,
         cameraX, cameraY,
         zoom, time,
-        bandCount, 0
+        bandCount, 0,
+        color[0], color[1], color[2], 0
       ])
     );
 
@@ -275,15 +280,11 @@ export class PlasmaRenderer {
       // Calculate alpha based on fade state
       let alpha = 1.0;
       if (band.isFading) {
-        alpha = band.fadeTimer / 1.5; // FADE_TIME
+        alpha = band.fadeTimer / 1.0; // FADE_TIME
       }
 
-      // Calculate intensity (0 during warning, 1 when lethal)
-      let intensity = band.isLethal ? 1.0 : 0.0;
-      if (band.warningTimer > 0) {
-        // Pulse during warning
-        intensity = 0.3 + 0.2 * Math.sin(time * 10);
-      }
+      // Intensity is always 1.0 (bands are immediately lethal)
+      const intensity = 1.0;
 
       bandData[i * 4 + 0] = band.currentPosition;
       bandData[i * 4 + 1] = isHorizontal ? 1.0 : 0.0;
