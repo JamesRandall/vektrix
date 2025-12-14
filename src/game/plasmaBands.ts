@@ -167,8 +167,15 @@ export function updatePlasmaBands(
 
     // Warning phase countdown
     if (band.warningTimer > 0) {
+      // If player moves during warning, cancel the band (start fading)
+      if (isMoving) {
+        band.warningTimer = 0;
+        band.isFading = true;
+        band.fadeTimer = FADE_TIME;
+        continue;
+      }
       band.warningTimer -= dt;
-      if (band.warningTimer <= 0 && !isMoving) {
+      if (band.warningTimer <= 0) {
         band.isLethal = true;
         band.isClosing = true;
       }
