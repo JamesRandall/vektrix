@@ -237,6 +237,9 @@ export function checkPlasmaCollision(playerX: number, playerY: number): boolean 
 
 export function resetPlasmaGraceTimer(): void {
   plasmaState.graceTimer = GRACE_TIME;
+  plasmaState.stationaryTimer = 0;
+  plasmaState.isWarningPhase = false;
+  plasmaState.warningTimer = 0;
 }
 
 export function clearPlasmaBands(): void {
